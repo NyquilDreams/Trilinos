@@ -983,14 +983,14 @@ void DistributorPlan::initializeMpiAdvance() {
   DistributorPlan::SubViewLimits DistributorPlan::getImportViewLimits(size_t numPackets) const {
     const size_t actualNumReceives = getNumReceives() + (hasSelfMessage() ? 1 : 0);
 
-    IndexView importStarts(actualNumReceives);
-    IndexView importLengths(actualNumReceives);
+    IndexView importStarts("importStarts", actualNumReceives);
+    IndexView importLengths("importLengths", actualNumReceives);
 
     size_t offset = 0;
     for (size_t i = 0; i < actualNumReceives; ++i) {
-      importStarts[i] = offset;
+      importStarts(i) = offset;
       offset += getLengthsFrom()[i] * numPackets;
-      importLengths[i] = getLengthsFrom()[i] * numPackets;
+      importLengths(i) = getLengthsFrom()[i] * numPackets;
     }
     return std::make_pair(importStarts, importLengths);
   }
@@ -1000,20 +1000,20 @@ void DistributorPlan::initializeMpiAdvance() {
     if (getIndicesTo().is_null()) {
 
       const size_t actualNumSends = getNumSends() + (hasSelfMessage() ? 1 : 0);
-      IndexView exportStarts(actualNumSends);
-      IndexView exportLengths(actualNumSends);
+      IndexView exportStarts("exportStarts", actualNumSends);
+      IndexView exportLengths("exportLengths", actualNumSends);
       for (size_t pp = 0; pp < actualNumSends; ++pp) {
-        exportStarts[pp] = getStartsTo()[pp] * numPackets;
-        exportLengths[pp] = getLengthsTo()[pp] * numPackets;
+        exportStarts(pp) = getStartsTo()[pp] * numPackets;
+        exportLengths(pp) = getLengthsTo()[pp] * numPackets;
       }
       return std::make_pair(exportStarts, exportLengths);
     } else {
       const size_t numIndices = getIndicesTo().size();
-      IndexView exportStarts(numIndices);
-      IndexView exportLengths(numIndices);
+      IndexView exportStarts("exportStarts", numIndices);
+      IndexView exportLengths("exportLengths", numIndices);
       for (size_t j = 0; j < numIndices; ++j) {
-        exportStarts[j] = getIndicesTo()[j]*numPackets;
-        exportLengths[j] = numPackets;
+        exportStarts(j) = getIndicesTo()[j]*numPackets;
+        exportLengths(j) = numPackets;
       }
       return std::make_pair(exportStarts, exportLengths);
     }

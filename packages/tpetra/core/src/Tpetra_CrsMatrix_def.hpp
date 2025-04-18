@@ -47,6 +47,7 @@
 #include "KokkosBlas1_scal.hpp"
 #include "KokkosSparse_getDiagCopy.hpp"
 #include "KokkosSparse_spmv.hpp"
+#include "Kokkos_StdAlgorithms.hpp"
 
 #include <memory>
 #include <sstream>
@@ -8316,10 +8317,13 @@ CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>::
             std::cerr << os.str ();
           }
 
-          size_t totalImportPackets = 0;
-          for (size_t i = 0; i < destMat->numImportPacketsPerLID_.view_host().size (); ++i) {
-            totalImportPackets += destMat->numImportPacketsPerLID_.view_host()[i];
-          }
+          destMat->numExportPacketsPerLID_.sync_device ();
+          auto numExportPacketsPerLID = destMat->numExportPacketsPerLID_.view_device();
+          destMat->numImportPacketsPerLID_.modify_host();
+          destMat->numImportPacketsPerLID_.sync_device ();
+          auto numImportPacketsPerLID = destMat->numImportPacketsPerLID_.view_device();
+
+          size_t totalImportPackets = Kokkos::Experimental::reduce(typename Node::execution_space(), numImportPacketsPerLID);
 
           // Reallocation MUST go before setting the modified flag,
           // because it may clear out the flags.
@@ -8338,9 +8342,9 @@ CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>::
             std::cerr << os.str ();
           }
           Distor.doReversePostsAndWaits (hostExports,
-                                         destMat->numExportPacketsPerLID_.view_host(),
+                                         numExportPacketsPerLID,
                                          hostImports,
-                                         destMat->numImportPacketsPerLID_.view_host());
+                                         numImportPacketsPerLID);
           if (verbose) {
             std::ostringstream os;
             os << *verbosePrefix << "Finished 4-arg doReversePostsAndWaits"
@@ -8406,10 +8410,13 @@ CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>::
             std::cerr << os.str ();
           }
 
-          size_t totalImportPackets = 0;
-          for (size_t i = 0; i < destMat->numImportPacketsPerLID_.view_host().size (); ++i) {
-            totalImportPackets += destMat->numImportPacketsPerLID_.view_host()[i];
-          }
+          destMat->numExportPacketsPerLID_.sync_device ();
+          auto numExportPacketsPerLID = destMat->numExportPacketsPerLID_.view_device();
+          destMat->numImportPacketsPerLID_.modify_host();
+          destMat->numImportPacketsPerLID_.sync_device ();
+          auto numImportPacketsPerLID = destMat->numImportPacketsPerLID_.view_device();
+ 
+          size_t totalImportPackets = Kokkos::Experimental::reduce(typename Node::execution_space(), numImportPacketsPerLID);
 
           // Reallocation MUST go before setting the modified flag,
           // because it may clear out the flags.
@@ -8428,9 +8435,9 @@ CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>::
             std::cerr << os.str ();
           }
           Distor.doPostsAndWaits (hostExports,
-                                  destMat->numExportPacketsPerLID_.view_host(),
+                                  numExportPacketsPerLID,
                                   hostImports,
-                                  destMat->numImportPacketsPerLID_.view_host());
+                                  numImportPacketsPerLID);
           if (verbose) {
             std::ostringstream os;
             os << *verbosePrefix << "Finished 4-arg doPostsAndWaits"
