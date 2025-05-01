@@ -8300,7 +8300,9 @@ CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>::
           // using the version on host.  If host has the latest
           // version, syncing to host does nothing.
           destMat->numExportPacketsPerLID_.sync_host ();
+          auto numExportPacketsPerLID = destMat->numExportPacketsPerLID_.view_host();
           destMat->numImportPacketsPerLID_.sync_host ();
+          auto numImportPacketsPerLID = destMat->numImportPacketsPerLID_.view_host();
 
           if (verbose) {
             std::ostringstream os;
@@ -8308,8 +8310,8 @@ CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>::
                << std::endl;
             std::cerr << os.str ();
           }
-          Distor.doReversePostsAndWaits(destMat->numExportPacketsPerLID_.view_host(), 1,
-                                            destMat->numImportPacketsPerLID_.view_host());
+          Distor.doReversePostsAndWaits(numExportPacketsPerLID, 1,
+                                            numImportPacketsPerLID);
           if (verbose) {
             std::ostringstream os;
             os << *verbosePrefix << "Finished 3-arg doReversePostsAndWaits"
@@ -8317,13 +8319,8 @@ CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>::
             std::cerr << os.str ();
           }
 
-          destMat->numExportPacketsPerLID_.sync_device ();
-          auto numExportPacketsPerLID = destMat->numExportPacketsPerLID_.view_device();
-          destMat->numImportPacketsPerLID_.modify_host();
-          destMat->numImportPacketsPerLID_.sync_device ();
-          auto numImportPacketsPerLID = destMat->numImportPacketsPerLID_.view_device();
 
-          size_t totalImportPackets = Kokkos::Experimental::reduce(typename Node::execution_space(), numImportPacketsPerLID);
+          size_t totalImportPackets = Kokkos::Experimental::reduce(Kokkos::DefaultHostExecutionSpace(), numImportPacketsPerLID);
 
           // Reallocation MUST go before setting the modified flag,
           // because it may clear out the flags.
@@ -8394,15 +8391,17 @@ CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>::
           // using the version on host.  If host has the latest
           // version, syncing to host does nothing.
           destMat->numExportPacketsPerLID_.sync_host ();
+          auto numExportPacketsPerLID = destMat->numExportPacketsPerLID_.view_host();
           destMat->numImportPacketsPerLID_.sync_host ();
+          auto numImportPacketsPerLID = destMat->numImportPacketsPerLID_.view_host();
           if (verbose) {
             std::ostringstream os;
             os << *verbosePrefix << "Calling 3-arg doPostsAndWaits"
                << std::endl;
             std::cerr << os.str ();
           }
-          Distor.doPostsAndWaits(destMat->numExportPacketsPerLID_.view_host(), 1,
-                                      destMat->numImportPacketsPerLID_.view_host());
+          Distor.doPostsAndWaits(numExportPacketsPerLID, 1,
+                                      numImportPacketsPerLID);
           if (verbose) {
             std::ostringstream os;
             os << *verbosePrefix << "Finished 3-arg doPostsAndWaits"
@@ -8410,13 +8409,7 @@ CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>::
             std::cerr << os.str ();
           }
 
-          destMat->numExportPacketsPerLID_.sync_device ();
-          auto numExportPacketsPerLID = destMat->numExportPacketsPerLID_.view_device();
-          destMat->numImportPacketsPerLID_.modify_host();
-          destMat->numImportPacketsPerLID_.sync_device ();
-          auto numImportPacketsPerLID = destMat->numImportPacketsPerLID_.view_device();
- 
-          size_t totalImportPackets = Kokkos::Experimental::reduce(typename Node::execution_space(), numImportPacketsPerLID);
+          size_t totalImportPackets = Kokkos::Experimental::reduce(Kokkos::DefaultHostExecutionSpace(), numImportPacketsPerLID);
 
           // Reallocation MUST go before setting the modified flag,
           // because it may clear out the flags.

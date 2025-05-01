@@ -93,7 +93,7 @@ class DistributorPlan : public Teuchos::ParameterListAcceptorDefaultBase {
 
 public:
 
-  using IndexView = Kokkos::View<size_t*, Kokkos::DefaultHostExecutionSpace>;
+  using IndexView = Kokkos::View<size_t*, Kokkos::HostSpace>;
   using SubViewLimits = std::pair<IndexView, IndexView>;
 
   DistributorPlan(Teuchos::RCP<const Teuchos::Comm<int>> comm);
@@ -277,7 +277,7 @@ DistributorPlan::SubViewLimits DistributorPlan::getImportViewLimits(const ImpPac
   for (size_t i = 0; i < actualNumReceives; ++i) {
     size_t totalPacketsFrom_i = 0;
     Kokkos::parallel_reduce(
-      Kokkos::RangePolicy<ExecSpace>(0, getLengthsFrom()[i]), KOKKOS_LAMBDA(const size_t j, size_t& total) {
+      "import_offsets", Kokkos::RangePolicy<ExecSpace>(0, getLengthsFrom()[i]), KOKKOS_LAMBDA(const size_t j, size_t& total) {
         total += numImportPacketsPerLID(curLIDoffset + j);
       }, totalPacketsFrom_i);
     curLIDoffset += getLengthsFrom()[i];
@@ -303,7 +303,7 @@ DistributorPlan::SubViewLimits DistributorPlan::getExportViewLimits(const ExpPac
     for (size_t pp = 0; pp < actualNumSends; ++pp) {
       size_t numPackets = 0;
       Kokkos::parallel_reduce(
-        Kokkos::RangePolicy<ExecSpace>(getStartsTo()[pp], getStartsTo()[pp]+getLengthsTo()[pp]), KOKKOS_LAMBDA(const size_t j, size_t& sum) {
+        "export_offsets1", Kokkos::RangePolicy<ExecSpace>(getStartsTo()[pp], getStartsTo()[pp]+getLengthsTo()[pp]), KOKKOS_LAMBDA(const size_t j, size_t& sum) {
           sum += numExportPacketsPerLID(j);
         }, numPackets);
       exportStarts(pp) = offset;
@@ -317,7 +317,7 @@ DistributorPlan::SubViewLimits DistributorPlan::getExportViewLimits(const ExpPac
     IndexView exportLengths("exportLengths", numIndices);
     auto exportStarts_d = Kokkos::create_mirror_view(ExecSpace(), exportStarts);
     Kokkos::parallel_scan(
-      Kokkos::RangePolicy<ExecSpace>(0, numIndices), KOKKOS_LAMBDA(const size_t j, size_t& offset, bool is_final) {
+      "export_offsets2", Kokkos::RangePolicy<ExecSpace>(0, numIndices), KOKKOS_LAMBDA(const size_t j, size_t& offset, bool is_final) {
         if (is_final) exportStarts_d(j) = offset;
         offset += numExportPacketsPerLID(j);
       });
